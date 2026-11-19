@@ -29,7 +29,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Open http://localhost:5173. The API listens on http://127.0.0.1:8787. For a production-style local run, use `npm run build` followed by `npm start`.
+For development, open http://localhost:5173; the API listens on http://127.0.0.1:8787. For a production-style local run, use `npm run build` followed by `npm start`, then open http://127.0.0.1:8787 (the API server also serves the built web app).
 
 ## Environment
 
