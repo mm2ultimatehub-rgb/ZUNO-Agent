@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   Activity, ArrowLeft, ArrowUp, Bot, Check, ChevronDown, CircleHelp, Code2,
   Command, Cpu, FolderGit2, Gauge, Github, Layers3, Menu, MessageSquare,
-  ExternalLink, FileCode2, FileText, FolderGit2, Globe, Lock, MoreHorizontal, Paperclip, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles,
+  ExternalLink, FileCode2, FileText, Globe, Lock, MoreHorizontal, Paperclip, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles,
   X, Zap,
 } from 'lucide-react';
 import { checkHealth, getRepositoryFile, getRepositoryTree, listRepositories, sendChat } from './lib/api';
@@ -26,6 +26,7 @@ export default function App() {
   const [githubConfigured, setGithubConfigured] = useState(false);
   const [projects, setProjects] = useState<Repository[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [projectError, setProjectError] = useState('');
   const [selectedProject, setSelectedProject] = useState<Repository | null>(null);
   const [projectFiles, setProjectFiles] = useState<RepositoryEntry[]>([]);
@@ -52,10 +53,10 @@ export default function App() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy]);
 
   useEffect(() => {
-    if (activeTab !== 'Projects' || !githubConfigured || projects.length > 0 || projectsLoading) return;
+    if (activeTab !== 'Projects' || !githubConfigured || projectsLoaded || projectsLoading) return;
     setProjectsLoading(true);
-    listRepositories().then(setProjects).catch((error) => setProjectError(error instanceof Error ? error.message : 'Could not load repositories.')).finally(() => setProjectsLoading(false));
-  }, [activeTab, githubConfigured, projects.length, projectsLoading]);
+    listRepositories().then(setProjects).catch((error) => setProjectError(error instanceof Error ? error.message : 'Could not load repositories.')).finally(() => { setProjectsLoading(false); setProjectsLoaded(true); });
+  }, [activeTab, githubConfigured, projectsLoaded, projectsLoading]);
 
   async function openProject(project: Repository) {
     setSelectedProject(project);
@@ -174,7 +175,7 @@ export default function App() {
                 <div><span className="eyebrow-mini">GITHUB WORKSPACE</span><h2>{selectedProject ? selectedProject.name : 'Your repositories'}</h2><p>{selectedProject ? selectedProject.fullName + ' · ' + selectedProject.defaultBranch : 'Browse codebases connected to your GitHub account.'}</p></div>
                 <div className="project-heading-actions">
                   {selectedProject && <button className="settings-button" onClick={() => { setSelectedProject(null); setProjectFiles([]); setSelectedFile(''); setProjectError(''); }}><ArrowLeft size={15} /> Repositories</button>}
-                  <button className="icon-button" aria-label="Refresh repositories" onClick={() => { setProjects([]); setProjectError(''); }}><RefreshCw size={16} /></button>
+                  <button className="icon-button" aria-label="Refresh repositories" onClick={() => { setProjects([]); setProjectsLoaded(false); setProjectError(''); }}><RefreshCw size={16} /></button>
                 </div>
               </div>
               {!githubConfigured ? (
