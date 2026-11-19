@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProposal, getProposal, markProposalApproved } from './proposals';
 
 describe('change proposal lifecycle', () => {
+  afterEach(() => vi.useRealTimers());
   let proposalId = '';
 
   beforeEach(() => {
@@ -32,5 +33,22 @@ describe('change proposal lifecycle', () => {
 
   it('returns no proposal for an unknown identifier', () => {
     expect(getProposal('00000000-0000-4000-8000-000000000000')).toBeUndefined();
+  });
+
+  it('expires proposals after one hour', () => {
+    vi.useFakeTimers();
+    const proposal = createProposal({
+      owner: 'zuno-test',
+      repo: 'sample',
+      path: 'src/expiry.ts',
+      summary: 'Test proposal expiry',
+      baseBranch: 'main',
+      baseSha: 'base-sha',
+      originalSha: null,
+      originalContent: '',
+      proposedContent: 'export const expired = true;',
+    });
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+    expect(getProposal(proposal.id)).toBeUndefined();
   });
 });
