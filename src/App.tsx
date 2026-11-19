@@ -35,7 +35,14 @@ function loadStoredSessions(): StoredSession[] {
       typeof (session as StoredSession).title === 'string' &&
       typeof (session as StoredSession).updatedAt === 'number' &&
       Array.isArray((session as StoredSession).messages)
-    ).slice(0, 20);
+    ).map((session) => ({
+      ...session,
+      messages: session.messages.filter((item) =>
+        item && typeof item.id === 'string' &&
+        ['user', 'assistant'].includes(item.role) &&
+        typeof item.content === 'string'
+      ).slice(-100),
+    })).slice(0, 20);
   } catch {
     return [];
   }
@@ -320,7 +327,7 @@ export default function App() {
             <div className="feature-placeholder glass-panel activity-view">
               <Activity size={22} />
               <h2>Recent activity</h2>
-              <p>Your current session is saved locally on this device. The latest 100 messages are restored when you reopen ZUNO.</p>
+              <p>Your latest 20 chat sessions are saved locally on this device, with up to 100 messages per session.</p>
               <div className="activity-stats">
                 <span><strong>{messages.length}</strong><small>Messages</small></span>
                 <span><strong>{proposals.length}</strong><small>Code proposals</small></span>
