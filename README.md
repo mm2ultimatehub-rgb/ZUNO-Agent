@@ -45,7 +45,7 @@ For GitHub browsing, set `GITHUB_TOKEN` to a fine-grained token with **Metadata:
 - Agent tool calls are allowlisted and bounded per request.
 - The model cannot invoke a shell, install dependencies, or execute repository code. Treat all generated changes as untrusted until reviewed and tested.
 - Pending proposals are held in server memory for up to one hour; restarting the server clears them.
-- The current chat transcript is stored in the browser's local storage on that device (up to the latest 100 messages); it is not synchronized to a server or other devices.
+- The latest 20 chat sessions are stored in the browser's local storage on that device (up to 100 messages per session); they are not synchronized to a server or other devices. Proposal review cards are temporary and are not restored after a reload.
 - GitHub writes occur only after an explicit approval click, on a new branch, and are submitted as a pull request. Nothing is merged automatically.
 - Arbitrary shell execution is not enabled.
 
