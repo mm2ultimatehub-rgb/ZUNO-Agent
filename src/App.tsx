@@ -353,7 +353,7 @@ export default function App() {
         <div className="composer-area">
           <form className="composer glass-panel" onSubmit={onSubmit}>
             <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Ask ZUNO to build, debug, or explore..." rows={1} disabled={busy} />
-            <div className="composer-bottom"><div className="composer-tools"><button type="button" className="tool-button" onClick={() => setNotice('Project attachment support is coming soon.')} aria-label="Attach project"><Paperclip size={16} /></button><span className="composer-hint"><Command size={11} /> Enter to send · Shift + Enter for newline</span></div><button className="send-button" type="submit" disabled={!input.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <ArrowUp size={18} />}</button></div>
+            <div className="composer-bottom"><div className="composer-tools"><button type="button" className="tool-button" onClick={() => { setActiveTab('Projects'); setNotice(''); }} aria-label="Browse GitHub repositories" title="Browse GitHub repositories"><Paperclip size={16} /></button><span className="composer-hint"><Command size={11} /> Enter to send · Shift + Enter for newline</span></div><button className="send-button" type="submit" disabled={!input.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <ArrowUp size={18} />}</button></div>
           </form>
           <div className="composer-disclaimer"><ShieldCheck size={12} /> ZUNO can make mistakes. Review important changes before applying them.</div>
         </div>
