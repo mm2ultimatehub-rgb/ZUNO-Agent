@@ -1,4 +1,7 @@
 import express from 'express';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import { config } from './config';
 import { chatRequestSchema } from './schemas';
@@ -113,6 +116,17 @@ app.post('/api/chat', async (req, res) => {
     res.status(502).json({ error: message.includes('timeout') ? 'The AI request timed out. Please try again.' : 'Could not reach the AI provider. Check your server configuration.' });
   }
 });
+
+const clientDist = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
+if (existsSync(clientDist)) {
+  app.use(express.static(clientDist, { index: false, maxAge: '1h' }));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(resolve(clientDist, 'index.html'), (error) => {
+      if (error) next(error);
+    });
+  });
+}
 
 app.listen(config.port, config.host, () => {
   console.log(`ZUNO Agent API listening on http://${config.host}:${config.port}`);
