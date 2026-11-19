@@ -113,6 +113,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.listen(config.port, () => {
-  console.log(`ZUNO Agent API listening on http://localhost:${config.port}`);
+app.listen(config.port, config.host, () => {
+  console.log(`ZUNO Agent API listening on http://${config.host}:${config.port}`);
 });
