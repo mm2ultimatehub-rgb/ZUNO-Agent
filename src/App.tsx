@@ -103,13 +103,28 @@ export default function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    checkHealth().then((health) => {
-      setApiOnline(health.ok);
-      setConfigured(health.configured);
-      setRuntimeAvailable(health.runtimeAvailable ?? health.ok);
-      setModelAvailable(health.modelAvailable ?? health.configured);
-      setGithubConfigured(health.githubConfigured);
-    }).catch(() => setApiOnline(false));
+    let active = true;
+    const refreshHealth = () => {
+      checkHealth().then((health) => {
+        if (!active) return;
+        setApiOnline(health.ok);
+        setConfigured(health.configured);
+        setRuntimeAvailable(health.runtimeAvailable ?? health.ok);
+        setModelAvailable(health.modelAvailable ?? health.configured);
+        setGithubConfigured(health.githubConfigured);
+      }).catch(() => {
+        if (active) {
+          setApiOnline(false);
+          setConfigured(false);
+        }
+      });
+    };
+    refreshHealth();
+    const interval = window.setInterval(refreshHealth, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
