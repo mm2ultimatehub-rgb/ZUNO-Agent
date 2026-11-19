@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  Activity, ArrowDown, ArrowUp, Bot, Check, ChevronDown, CircleHelp, Code2,
-  Command, Cpu, FolderGit2, Gauge, Github, GitBranch, Layers3, Menu, MessageSquare,
+  Activity, ArrowUp, Bot, Check, ChevronDown, CircleHelp, Code2,
+  Command, Cpu, FolderGit2, Gauge, Github, Layers3, Menu, MessageSquare,
   MoreHorizontal, Paperclip, Plus, Radio, Search, Settings2, ShieldCheck, Sparkles,
-  Terminal, WandSparkles, X, Zap,
+  X, Zap,
 } from 'lucide-react';
 import { checkHealth, sendChat } from './lib/api';
 import type { ChatMessage } from './types';
