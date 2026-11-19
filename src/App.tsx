@@ -19,7 +19,22 @@ function makeMessage(role: ChatMessage['role'], content: string): ChatMessage {
 }
 
 export default function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('zuno:current-session');
+      if (!saved) return [];
+      const parsed: unknown = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((item): item is ChatMessage =>
+        typeof item === 'object' && item !== null &&
+        typeof (item as ChatMessage).id === 'string' &&
+        ['user', 'assistant'].includes((item as ChatMessage).role) &&
+        typeof (item as ChatMessage).content === 'string'
+      ).slice(-100);
+    } catch {
+      return [];
+    }
+  });
   const [proposals, setProposals] = useState<ChangeProposal[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [input, setInput] = useState('');
@@ -51,6 +66,15 @@ export default function App() {
       setGithubConfigured(health.githubConfigured);
     }).catch(() => setApiOnline(false));
   }, []);
+
+  useEffect(() => {
+    try {
+      if (messages.length === 0) localStorage.removeItem('zuno:current-session');
+      else localStorage.setItem('zuno:current-session', JSON.stringify(messages.slice(-100)));
+    } catch {
+      // Storage can be unavailable or full; chat remains usable for this session.
+    }
+  }, [messages]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy]);
 
