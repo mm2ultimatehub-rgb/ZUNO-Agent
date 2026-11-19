@@ -1,5 +1,22 @@
 import type { ApprovalResponse, AgentActivity, ChatMessage, ChatResponse, HealthResponse, Repository, RepositoryFile, RepositoryTree } from '../types';
 
+const API_URL_KEY = 'zuno:api-base-url';
+
+export function getApiBaseUrl(): string {
+  try { return localStorage.getItem(API_URL_KEY)?.trim().replace(/\\/$/, '') || ''; }
+  catch { return ''; }
+}
+
+export function setApiBaseUrl(value: string): void {
+  const normalized = value.trim().replace(/\\/$/, '');
+  if (normalized) localStorage.setItem(API_URL_KEY, normalized);
+  else localStorage.removeItem(API_URL_KEY);
+}
+
+function apiUrl(path: string): string {
+  return getApiBaseUrl() ? `${getApiBaseUrl()}${path}` : path;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const data: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -10,7 +27,7 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 export async function sendChat(messages: ChatMessage[], signal?: AbortSignal): Promise<ChatResponse> {
-  const response = await fetch('/api/chat', {
+  const response = await fetch(apiUrl('/api/chat'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: messages.map(({ role, content }) => ({ role, content })) }),
@@ -20,23 +37,23 @@ export async function sendChat(messages: ChatMessage[], signal?: AbortSignal): P
 }
 
 export async function checkHealth(): Promise<HealthResponse> {
-  return readJson<HealthResponse>(await fetch('/api/health'));
+  return readJson<HealthResponse>(await fetch(apiUrl('/api/health')));
 }
 
 export async function listRepositories(): Promise<Repository[]> {
-  const data = await readJson<{ repositories: Repository[] }>(await fetch('/api/github/repos'));
+  const data = await readJson<{ repositories: Repository[] }>(await fetch(apiUrl('/api/github/repos')));
   return data.repositories;
 }
 
 export async function getRepositoryTree(owner: string, repo: string, branch?: string): Promise<RepositoryTree> {
   const query = new URLSearchParams({ owner, repo });
   if (branch) query.set('branch', branch);
-  return readJson<RepositoryTree>(await fetch(`/api/github/tree?${query}`));
+  return readJson<RepositoryTree>(await fetch(apiUrl(`/api/github/tree?${query}`)));
 }
 
 export async function getRepositoryFile(owner: string, repo: string, path: string): Promise<RepositoryFile> {
   const query = new URLSearchParams({ owner, repo, path });
-  return readJson<RepositoryFile>(await fetch(`/api/github/file?${query}`));
+  return readJson<RepositoryFile>(await fetch(apiUrl(`/api/github/file?${query}`)));
 }
 
 export async function approveProposal(id: string): Promise<ApprovalResponse> {
@@ -47,6 +64,6 @@ export async function approveProposal(id: string): Promise<ApprovalResponse> {
 }
 
 export async function getAgentActivity(): Promise<AgentActivity[]> {
-  const data = await readJson<{ events: AgentActivity[] }>(await fetch('/api/activity', { cache: 'no-store' }));
+  const data = await readJson<{ events: AgentActivity[] }>(await fetch(apiUrl('/api/activity'), { cache: 'no-store' }));
   return data.events;
 }
