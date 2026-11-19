@@ -20,3 +20,10 @@
 .recent-item.selected{border-radius:8px;background:rgba(167,139,250,.09);color:#d9ceff}.recent-item:hover{border-radius:8px;background:rgba(255,255,255,.045)}
 
 .sidebar{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#35364b transparent}
+
+
+/* Voice controls */
+.voice-button.voice-active,.tool-button.voice-active{color:#fff;background:rgba(167,139,250,.2);box-shadow:0 0 0 1px rgba(167,139,250,.35),0 0 18px rgba(167,139,250,.18)}
+.voice-button.voice-active{animation:voice-pulse 1.35s ease-in-out infinite}
+.tool-button:disabled{cursor:not-allowed;opacity:.35}
+@keyframes voice-pulse{0%,100%{box-shadow:0 0 0 1px rgba(167,139,250,.3),0 0 8px rgba(167,139,250,.12)}50%{box-shadow:0 0 0 5px rgba(167,139,250,.08),0 0 22px rgba(167,139,250,.3)}}
