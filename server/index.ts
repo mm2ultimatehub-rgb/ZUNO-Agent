@@ -1,27 +1,19 @@
 import express from 'express';
 import cors from 'cors';
-import { z } from 'zod';
 import { config } from './config';
+import { chatRequestSchema } from './schemas';
 
 const app = express();
 app.disable('x-powered-by');
 app.use(cors({ origin: config.clientOrigin }));
 app.use(express.json({ limit: '64kb' }));
 
-const messageSchema = z.object({
-  role: z.enum(['user', 'assistant']),
-  content: z.string().min(1).max(12000),
-});
-const requestSchema = z.object({
-  messages: z.array(messageSchema).min(1).max(30),
-});
-
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, configured: Boolean(config.apiKey), model: config.model });
 });
 
 app.post('/api/chat', async (req, res) => {
-  const parsed = requestSchema.safeParse(req.body);
+  const parsed = chatRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid chat payload. Messages must contain a role and text.' });
     return;
