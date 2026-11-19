@@ -83,3 +83,8 @@ MIT
 ## Mobile voice controls
 
 The chat composer includes browser-based speech input and spoken replies. Use the microphone button to dictate Turkish text into the composer, then send it normally; use the speaker button to enable or disable spoken assistant replies. Voice recognition depends on browser support and microphone permission. Browsers generally require a secure context (HTTPS, or localhost) for microphone access, so a plain `http://192.168.x.x` same-Wi-Fi address may allow chat but block voice input. Use a trusted HTTPS deployment or a private HTTPS tunnel for phone voice access; do not expose the unauthenticated development server directly to the public internet.
+
+
+## Live task progress
+
+The workspace Activity view polls `/api/activity` and displays recent agent task events, reasoning rounds, GitHub tool steps, and task completion or failure. The event feed is held in server memory (up to 80 events) and is cleared when the server restarts. It is intended for a trusted local network; do not expose this unauthenticated endpoint to the public internet.
