@@ -3,7 +3,7 @@ import {
   Activity, ArrowLeft, ArrowUp, Bot, Check, ChevronDown, CircleHelp, Code2,
   Command, Cpu, FolderGit2, Gauge, Github, Layers3, Menu, MessageSquare,
   CheckCircle2, ExternalLink, FileCode2, FileText, GitPullRequest, Globe, Lock, MoreHorizontal, Paperclip, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles,
-  X, Zap,
+  X, Zap, Mic, Volume2, VolumeX,
 } from 'lucide-react';
 import { approveProposal, checkHealth, getRepositoryFile, getRepositoryTree, listRepositories, sendChat } from './lib/api';
 import type { ChangeProposal, ChatMessage, Repository, RepositoryEntry } from './types';
@@ -101,6 +101,45 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceReplies, setVoiceReplies] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(true);
+
+  useEffect(() => {
+    const browserWindow = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
+    const Recognition = browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition;
+    setVoiceSupported(Boolean(Recognition));
+    if (!Recognition) return;
+    const recognition = new Recognition();
+    recognition.lang = 'tr-TR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results as ArrayLike<any>).map((result: any) => result[0]?.transcript || '').join(' ').trim();
+      if (transcript) setInput((current) => current ? current + ' ' + transcript : transcript);
+    };
+    recognition.onerror = () => { setVoiceListening(false); setNotice('Ses tanıma başlatılamadı. Mikrofon iznini ve HTTPS bağlantısını kontrol et.'); };
+    recognition.onend = () => setVoiceListening(false);
+    recognitionRef.current = recognition;
+    return () => { try { recognition.stop(); } catch { /* Recognition may already be idle. */ } window.speechSynthesis?.cancel(); };
+  }, []);
+
+  function toggleVoiceInput() {
+    if (!recognitionRef.current) { setNotice('Bu tarayıcı ses tanımayı desteklemiyor. Android telefonda Chrome kullanmayı dene.'); return; }
+    if (voiceListening) { recognitionRef.current.stop(); setVoiceListening(false); return; }
+    try { window.speechSynthesis?.cancel(); recognitionRef.current.start(); setVoiceListening(true); setNotice(''); }
+    catch { setVoiceListening(false); setNotice('Mikrofon açılamadı. Tarayıcı izinlerini kontrol et.'); }
+  }
+
+  function speakReply(text: string) {
+    if (!voiceReplies || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'tr-TR';
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
+  }
 
   useEffect(() => {
     let active = true;
@@ -205,6 +244,7 @@ export default function App() {
     try {
       const result = await sendChat(next);
       setMessages((current) => [...current, makeMessage('assistant', result.message)]);
+      speakReply(result.message);
       if (result.proposals?.length) setProposals((current) => [...current, ...result.proposals!]);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Something went wrong.');
@@ -372,7 +412,7 @@ export default function App() {
         <div className="composer-area">
           <form className="composer glass-panel" onSubmit={onSubmit}>
             <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(); } }} placeholder="Ask ZUNO to build, debug, or explore..." rows={1} disabled={busy} />
-            <div className="composer-bottom"><div className="composer-tools"><button type="button" className="tool-button" onClick={() => { setActiveTab('Projects'); setNotice(''); }} aria-label="Browse GitHub repositories" title="Browse GitHub repositories"><Paperclip size={16} /></button><span className="composer-hint"><Command size={11} /> Enter to send · Shift + Enter for newline</span></div><button className="send-button" type="submit" disabled={!input.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <ArrowUp size={18} />}</button></div>
+            <div className="composer-bottom"><div className="composer-tools"><button type="button" className={`tool-button voice-button ${voiceListening ? 'voice-active' : ''}`} onClick={toggleVoiceInput} aria-label={voiceListening ? 'Stop voice input' : 'Speak to ZUNO'} title={voiceSupported ? (voiceListening ? 'Stop listening' : 'Speak to ZUNO') : 'Voice input not supported'} disabled={!voiceSupported}><Mic size={16} /></button><button type="button" className={`tool-button ${voiceReplies ? 'voice-active' : ''}`} onClick={() => { setVoiceReplies((value) => !value); if (voiceReplies) window.speechSynthesis?.cancel(); }} aria-label={voiceReplies ? 'Turn off spoken replies' : 'Turn on spoken replies'} title={voiceReplies ? 'Spoken replies on' : 'Spoken replies off'}>{voiceReplies ? <Volume2 size={16} /> : <VolumeX size={16} />}</button><button type="button" className="tool-button" onClick={() => { setActiveTab('Projects'); setNotice(''); }} aria-label="Browse GitHub repositories" title="Browse GitHub repositories"><Paperclip size={16} /></button><span className="composer-hint"><Command size={11} /> Enter to send · Shift + Enter for newline</span></div><button className="send-button" type="submit" disabled={!input.trim() || busy} aria-label="Send message">{busy ? <span className="send-loader" /> : <ArrowUp size={18} />}</button></div>
           </form>
           <div className="composer-disclaimer"><ShieldCheck size={12} /> ZUNO can make mistakes. Review important changes before applying them.</div>
         </div>
