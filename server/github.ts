@@ -337,5 +337,5 @@ export async function executeGithubAgentTool(name: string, rawArgs: unknown): Pr
     }
     return { path: file.path, content: Buffer.from(file.content, 'base64').toString('utf8') };
   }
-  throw new Error('Unknown or disallowed tool. Only read-only GitHub tools are enabled.');
+  throw new Error('Unknown or disallowed tool. Only allowlisted repository inspection and proposal tools are enabled.');
 }
