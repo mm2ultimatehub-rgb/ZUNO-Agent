@@ -5,8 +5,8 @@ import {
   CheckCircle2, ExternalLink, FileCode2, FileText, GitPullRequest, Globe, Lock, MoreHorizontal, Paperclip, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles,
   X, Zap, Mic, Volume2, VolumeX,
 } from 'lucide-react';
-import { approveProposal, checkHealth, getRepositoryFile, getRepositoryTree, listRepositories, sendChat } from './lib/api';
-import type { ChangeProposal, ChatMessage, Repository, RepositoryEntry } from './types';
+import { approveProposal, checkHealth, getAgentActivity, getRepositoryFile, getRepositoryTree, listRepositories, sendChat } from './lib/api';
+import type { AgentActivity, ChangeProposal, ChatMessage, Repository, RepositoryEntry } from './types';
 
 const starterPrompts = [
   { icon: Code2, title: 'Build a feature', detail: 'Plan and implement a new capability' },
@@ -105,6 +105,7 @@ export default function App() {
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceReplies, setVoiceReplies] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
+  const [agentActivity, setAgentActivity] = useState<AgentActivity[]>([]);
 
   useEffect(() => {
     const browserWindow = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
@@ -385,8 +386,17 @@ export default function App() {
           {activeTab === 'Activity' && (
             <div className="feature-placeholder glass-panel activity-view">
               <Activity size={22} />
-              <h2>Recent activity</h2>
-              <p>Your latest 20 chat sessions are saved locally on this device, with up to 100 messages per session.</p>
+              <h2>Live agent activity</h2>
+              <p>Tasks and tool steps from the connected ZUNO server refresh automatically every two seconds.</p>
+              <div className="live-activity-feed">
+                {agentActivity.length ? agentActivity.map((event) => (
+                  <div className="live-activity-item" key={event.id}>
+                    <span className={`live-activity-icon ${event.status}`}>{event.status === 'running' ? <RefreshCw size={14} /> : event.status === 'failed' ? <X size={14} /> : event.type === 'success' ? <CheckCircle2 size={14} /> : event.type === 'tool' ? <Code2 size={14} /> : <Activity size={14} />}</span>
+                    <div className="live-activity-copy"><strong>{event.title}</strong><p>{event.detail}</p><small>{new Date(event.timestamp).toLocaleTimeString()}</small></div>
+                    <span className={`live-activity-status ${event.status}`}>{event.status === 'running' ? 'In progress' : event.status === 'completed' ? 'Done' : event.status === 'failed' ? 'Failed' : 'Info'}</span>
+                  </div>
+                )) : <span className="activity-empty">No server activity yet. Send ZUNO a task to see its progress here.</span>}
+              </div>
               <div className="activity-stats">
                 <span><strong>{messages.length}</strong><small>Messages</small></span>
                 <span><strong>{proposals.length}</strong><small>Code proposals</small></span>
