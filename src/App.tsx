@@ -168,6 +168,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const refreshActivity = () => {
+      getAgentActivity().then((events) => { if (active) setAgentActivity(events); }).catch(() => { /* Activity is supplementary; chat remains usable. */ });
+    };
+    refreshActivity();
+    const interval = window.setInterval(refreshActivity, 2000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem('zuno:active-session', currentSessionId);
       if (messages.length === 0) return;
