@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  Activity, ArrowUp, Bot, Check, ChevronDown, CircleHelp, Code2,
+  Activity, ArrowLeft, ArrowUp, Bot, Check, ChevronDown, CircleHelp, Code2,
   Command, Cpu, FolderGit2, Gauge, Github, Layers3, Menu, MessageSquare,
-  MoreHorizontal, Paperclip, Plus, Radio, Search, Settings2, ShieldCheck, Sparkles,
+  ExternalLink, FileCode2, FileText, FolderGit2, Globe, Lock, MoreHorizontal, Paperclip, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles,
   X, Zap,
 } from 'lucide-react';
-import { checkHealth, sendChat } from './lib/api';
-import type { ChatMessage } from './types';
+import { checkHealth, getRepositoryFile, getRepositoryTree, listRepositories, sendChat } from './lib/api';
+import type { ChatMessage, Repository, RepositoryEntry } from './types';
 
 const starterPrompts = [
   { icon: Code2, title: 'Build a feature', detail: 'Plan and implement a new capability' },
@@ -23,6 +23,16 @@ export default function App() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [configured, setConfigured] = useState(false);
+  const [githubConfigured, setGithubConfigured] = useState(false);
+  const [projects, setProjects] = useState<Repository[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectError, setProjectError] = useState('');
+  const [selectedProject, setSelectedProject] = useState<Repository | null>(null);
+  const [projectFiles, setProjectFiles] = useState<RepositoryEntry[]>([]);
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState('');
+  const [fileContent, setFileContent] = useState('');
+  const [fileLoading, setFileLoading] = useState(false);
   const [apiOnline, setApiOnline] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Chat');
@@ -35,10 +45,52 @@ export default function App() {
     checkHealth().then((health) => {
       setApiOnline(health.ok);
       setConfigured(health.configured);
+      setGithubConfigured(health.githubConfigured);
     }).catch(() => setApiOnline(false));
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy]);
+
+  useEffect(() => {
+    if (activeTab !== 'Projects' || !githubConfigured || projects.length > 0 || projectsLoading) return;
+    setProjectsLoading(true);
+    listRepositories().then(setProjects).catch((error) => setProjectError(error instanceof Error ? error.message : 'Could not load repositories.')).finally(() => setProjectsLoading(false));
+  }, [activeTab, githubConfigured, projects.length, projectsLoading]);
+
+  async function openProject(project: Repository) {
+    setSelectedProject(project);
+    setProjectFiles([]);
+    setSelectedFile('');
+    setFileContent('');
+    setProjectError('');
+    setProjectLoading(true);
+    try {
+      const [owner, repo] = project.fullName.split('/');
+      const tree = await getRepositoryTree(owner, repo, project.defaultBranch);
+      setProjectFiles(tree.entries);
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : 'Could not read this repository.');
+    } finally {
+      setProjectLoading(false);
+    }
+  }
+
+  async function openFile(path: string) {
+    if (!selectedProject) return;
+    setSelectedFile(path);
+    setFileLoading(true);
+    setFileContent('');
+    setProjectError('');
+    try {
+      const [owner, repo] = selectedProject.fullName.split('/');
+      const file = await getRepositoryFile(owner, repo, path);
+      setFileContent(file.content);
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : 'Could not open this file.');
+    } finally {
+      setFileLoading(false);
+    }
+  }
 
   async function submit(text = input) {
     const prompt = text.trim();
@@ -84,7 +136,7 @@ export default function App() {
             { name: 'Code review', icon: ShieldCheck },
             { name: 'Activity', icon: Activity },
           ].map(({ name, icon: Icon }) => (
-            <button key={name} className={`nav-item ${activeTab === name ? 'active' : ''}`} onClick={() => { setActiveTab(name); setSidebarOpen(false); if (name !== 'Chat') setNotice(`${name} workspace is coming in a future release.`); else setNotice(''); }}>
+            <button key={name} className={`nav-item ${activeTab === name ? 'active' : ''}`} onClick={() => { setActiveTab(name); setSidebarOpen(false); if (name === 'Chat') setNotice(''); else if (name !== 'Projects') setNotice(`${name} tools are being built. The repository browser is available now.`); else setNotice(''); }}>
               <Icon size={17} /><span>{name}</span>{name === 'Activity' && <span className="nav-dot" />}
             </button>
           ))}
@@ -116,7 +168,26 @@ export default function App() {
         </header>
 
         <section className="workspace-content">
-          {messages.length === 0 ? (
+          {activeTab === 'Projects' ? (
+            <div className="projects-view">
+              <div className="projects-heading">
+                <div><span className="eyebrow-mini">GITHUB WORKSPACE</span><h2>{selectedProject ? selectedProject.name : 'Your repositories'}</h2><p>{selectedProject ? selectedProject.fullName + ' · ' + selectedProject.defaultBranch : 'Browse codebases connected to your GitHub account.'}</p></div>
+                <div className="project-heading-actions">
+                  {selectedProject && <button className="settings-button" onClick={() => { setSelectedProject(null); setProjectFiles([]); setSelectedFile(''); setProjectError(''); }}><ArrowLeft size={15} /> Repositories</button>}
+                  <button className="icon-button" aria-label="Refresh repositories" onClick={() => { setProjects([]); setProjectError(''); }}><RefreshCw size={16} /></button>
+                </div>
+              </div>
+              {!githubConfigured ? (
+                <div className="connect-card glass-panel"><div className="connect-icon"><Github size={23} /></div><h3>Connect your GitHub</h3><p>Add a fine-grained GitHub token to the server environment to let ZUNO inspect your repositories and source files. Use read-only access for Metadata and Contents.</p><code>GITHUB_TOKEN=github_pat_...</code><span className="connect-note">The token stays on your server. It is never sent to the browser.</span></div>
+              ) : projectError ? <div className="inline-notice"><CircleHelp size={15} />{projectError}<button onClick={() => setProjectError('')} aria-label="Dismiss"><X size={14} /></button></div> : selectedProject ? (
+                <div className="repository-detail">
+                  <div className="file-list glass-panel"><div className="file-list-heading"><span>FILES</span><small>{projectFiles.length} files</small></div>{projectLoading ? <div className="project-loading"><span className="send-loader" /> Reading repository tree…</div> : projectFiles.map((file) => <button key={file.path} className={`file-row ${selectedFile === file.path ? 'selected' : ''}`} onClick={() => void openFile(file.path)}><FileCode2 size={14} /><span>{file.path}</span></button>)}</div>
+                  <div className="file-preview glass-panel">{selectedFile ? <><div className="file-preview-heading"><FileText size={14} /><span>{selectedFile}</span></div>{fileLoading ? <div className="project-loading"><span className="send-loader" /> Loading file…</div> : <pre>{fileContent}</pre>}</> : <div className="file-empty"><Code2 size={24} /><strong>Select a file to preview</strong><span>Text files up to 100 KB can be opened here.</span></div>}</div>
+                </div>
+              ) : projectsLoading ? <div className="project-loading"><span className="send-loader" /> Loading your GitHub repositories…</div> : projects.length === 0 ? <div className="file-empty"><FolderGit2 size={25} /><strong>No repositories found</strong><span>Check that your token can read repository metadata and contents.</span></div> : <div className="repository-grid">{projects.map((project) => <button className="repository-card glass-panel" key={project.id} onClick={() => void openProject(project)}><div className="repository-card-top"><span className="repo-icon"><FolderGit2 size={17} /></span><span className="repo-visibility">{project.private ? <Lock size={11} /> : <Globe size={11} />}{project.private ? 'Private' : 'Public'}</span></div><strong>{project.name}</strong><span className="repo-fullname">{project.fullName}</span><p>{project.description || 'No description provided.'}</p><div className="repo-card-footer"><span>{project.language || 'Source code'}</span><span>Open project <ExternalLink size={11} /></span></div></button>)}</div>
+              )}
+            </div>
+          ) : activeTab === 'Chat' && messages.length === 0 ? (
             <div className="welcome-wrap">
               <div className="welcome-orbit"><div className="orbit-ring ring-a" /><div className="orbit-ring ring-b" /><div className="orbit-core"><Bot size={31} /></div><span className="orbit-spark spark-a"><Sparkles size={15} /></span><span className="orbit-spark spark-b"><Code2 size={14} /></span><span className="orbit-spark spark-c"><Zap size={13} /></span></div>
               <div className="eyebrow"><span className="eyebrow-line" /> YOUR AI ENGINEERING PARTNER <span className="eyebrow-line" /></div>
@@ -127,7 +198,7 @@ export default function App() {
               </div>
               <div className="capability-row"><span><Check size={13} /> Thoughtful planning</span><i /><span><Check size={13} /> Code-first answers</span><i /><span><Check size={13} /> Human in control</span></div>
             </div>
-          ) : (
+          ) : activeTab === 'Chat' ? (
             <div className="conversation">
               <div className="conversation-heading"><div><span className="eyebrow-mini">ZUNO SESSION</span><h2>Let's make it happen.</h2></div><span className="session-tag"><Radio size={12} /> Live session</span></div>
               {messages.map((message) => <article className={`message-row ${message.role}`} key={message.id}><div className={`message-avatar ${message.role}`}>{message.role === 'assistant' ? <Sparkles size={16} /> : 'Y'}</div><div className="message-body"><div className="message-meta"><strong>{message.role === 'assistant' ? 'ZUNO Agent' : 'You'}</strong><span>{message.role === 'assistant' ? 'AI assistant' : 'Just now'}</span></div><p>{message.content}</p></div></article>)}
@@ -136,7 +207,8 @@ export default function App() {
               <div ref={bottomRef} />
             </div>
           )}
-          {messages.length === 0 && notice && <div className="inline-notice welcome-notice"><CircleHelp size={15} />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div>}
+          {activeTab !== 'Projects' && activeTab !== 'Chat' && <div className="feature-placeholder glass-panel"><Sparkles size={22} /><h2>{activeTab}</h2><p>This workspace is being developed. GitHub repository browsing and AI chat are available now.</p><button className="settings-button" onClick={() => setActiveTab('Chat')}>Back to chat</button></div>}
+          {messages.length === 0 && activeTab === 'Chat' && notice && <div className="inline-notice welcome-notice"><CircleHelp size={15} />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div>}
         </section>
 
         <div className="composer-area">
@@ -148,7 +220,7 @@ export default function App() {
         </div>
       </main>
 
-      {showSettings && <div className="modal-backdrop" onClick={() => setShowSettings(false)}><section className="settings-modal glass-panel" onClick={(e) => e.stopPropagation()}><div className="modal-heading"><div><span className="eyebrow-mini">PREFERENCES</span><h2>Workspace settings</h2></div><button className="icon-button" onClick={() => setShowSettings(false)}><X size={18} /></button></div><div className="settings-row"><span className="settings-symbol"><Cpu size={17} /></span><div><strong>AI provider</strong><p>Configured securely on your server</p></div><span className={`settings-state ${configured ? 'good' : ''}`}>{configured ? 'Connected' : 'Not configured'}</span></div><div className="settings-row"><span className="settings-symbol"><Github size={17} /></span><div><strong>GitHub integration</strong><p>Repository tools are not enabled yet</p></div><span className="settings-state">Coming soon</span></div><div className="settings-row"><span className="settings-symbol"><Gauge size={17} /></span><div><strong>API status</strong><p>Local development server</p></div><span className={`settings-state ${apiOnline ? 'good' : ''}`}>{apiOnline ? 'Online' : 'Offline'}</span></div><div className="modal-footnote"><ShieldCheck size={14} /> Your provider key stays on the server and is never sent to the browser.</div></section></div>}
+      {showSettings && <div className="modal-backdrop" onClick={() => setShowSettings(false)}><section className="settings-modal glass-panel" onClick={(e) => e.stopPropagation()}><div className="modal-heading"><div><span className="eyebrow-mini">PREFERENCES</span><h2>Workspace settings</h2></div><button className="icon-button" onClick={() => setShowSettings(false)}><X size={18} /></button></div><div className="settings-row"><span className="settings-symbol"><Cpu size={17} /></span><div><strong>AI provider</strong><p>Configured securely on your server</p></div><span className={`settings-state ${configured ? 'good' : ''}`}>{configured ? 'Connected' : 'Not configured'}</span></div><div className="settings-row"><span className="settings-symbol"><Github size={17} /></span><div><strong>GitHub integration</strong><p>Read-only repository browsing and agent tools</p></div><span className={`settings-state ${githubConfigured ? 'good' : ''}`}>{githubConfigured ? 'Connected' : 'Not configured'}</span></div><div className="settings-row"><span className="settings-symbol"><Gauge size={17} /></span><div><strong>API status</strong><p>Local development server</p></div><span className={`settings-state ${apiOnline ? 'good' : ''}`}>{apiOnline ? 'Online' : 'Offline'}</span></div><div className="modal-footnote"><ShieldCheck size={14} /> AI and GitHub credentials stay on the server and are never sent to the browser.</div></section></div>}
       <div className="build-stamp"><Layers3 size={12} /> ZUNO AGENT <span>·</span> EARLY ACCESS</div>
     </div>
   );
