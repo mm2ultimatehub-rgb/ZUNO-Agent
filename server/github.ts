@@ -1,8 +1,80 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { config } from './config';
+import { createProposal, getProposal, markProposalApproved } from './proposals';
 
 export const githubRouter = Router();
+
+async function githubWrite(method: 'POST' | 'PUT', path: string, body: unknown) {
+  if (!config.githubToken) throw new Error('GitHub is not configured. Add GITHUB_TOKEN to the server .env file.');
+  const response = await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${config.githubToken}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+      'User-Agent': 'ZUNO-Agent',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(20000),
+  });
+  const payload: any = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('GitHub rejected the token. Check GITHUB_TOKEN.');
+    if (response.status === 403) throw new Error('GitHub denied the write. Approval requires Contents: write and Pull requests: write permissions.');
+    throw new Error(payload?.message || `GitHub write failed with status ${response.status}.`);
+  }
+  return payload;
+}
+
+const proposalArgsSchema = repoParams.extend({
+  path: fileParams.shape.path,
+  summary: z.string().trim().min(5).max(120),
+  content: z.string().min(1).max(40000),
+});
+
+async function prepareFileProposal(rawArgs: Record<string, unknown>) {
+  const parsed = proposalArgsSchema.safeParse(rawArgs);
+  if (!parsed.success) throw new Error('A proposal needs a valid owner, repository, file path, short summary, and file content (maximum 40 KB).');
+  const { owner, repo, path, summary, content } = parsed.data;
+  const metadata = await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
+  const baseBranch = metadata.default_branch as string;
+  const refPath = baseBranch.split('/').map(encodeURIComponent).join('/');
+  const ref = await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${refPath}`);
+  let originalSha: string | null = null;
+  let originalContent = '';
+  try {
+    const existing = await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split('/').map(encodeURIComponent).join('/')}`);
+    if (Array.isArray(existing) || existing.type !== 'file' || existing.size > 40000 || !existing.content) {
+      throw new Error('The target is not a supported text file or is larger than 40 KB.');
+    }
+    originalSha = existing.sha;
+    originalContent = Buffer.from(existing.content, 'base64').toString('utf8');
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.startsWith('Repository or file was not found')) throw error;
+  }
+  const proposal = createProposal({
+    owner, repo, path, summary, baseBranch,
+    baseSha: ref.object.sha,
+    originalSha,
+    originalContent,
+    proposedContent: content,
+  });
+  return {
+    proposal: {
+      id: proposal.id,
+      fullName: `${owner}/${repo}`,
+      path,
+      summary,
+      baseBranch,
+      originalContent,
+      proposedContent: content,
+      status: proposal.status,
+    },
+  };
+}
+
 
 const repositoryName = z.string().regex(/^[A-Za-z0-9_.-]+$/);
 const ownerName = z.string().regex(/^[A-Za-z0-9-]+$/);
@@ -101,6 +173,56 @@ githubRouter.get('/file', async (req, res) => {
   }
 });
 
+
+githubRouter.post('/proposals/:id/approve', async (req, res) => {
+  const id = z.string().uuid().safeParse(req.params.id);
+  if (!id.success) {
+    res.status(400).json({ error: 'Invalid proposal ID.' });
+    return;
+  }
+  const proposal = getProposal(id.data);
+  if (!proposal) {
+    res.status(404).json({ error: 'This proposal is missing, expired, or already approved. Ask ZUNO to prepare it again.' });
+    return;
+  }
+  try {
+    const { owner, repo, baseBranch, baseSha, originalSha, path, proposedContent, summary } = proposal;
+    const prefix = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+    const branch = `zuno-agent/${proposal.id.slice(0, 8)}`;
+    const refPath = baseBranch.split('/').map(encodeURIComponent).join('/');
+    const latestRef = await githubFetch(`${prefix}/git/ref/heads/${refPath}`);
+    if (latestRef.object.sha !== baseSha) {
+      res.status(409).json({ error: 'The base branch changed after this proposal was prepared. Ask ZUNO to refresh the proposal before approving.' });
+      return;
+    }
+    await githubWrite('POST', `${prefix}/git/refs`, { ref: `refs/heads/${branch}`, sha: baseSha });
+    const contentPath = path.split('/').map(encodeURIComponent).join('/');
+    const commitBody: Record<string, unknown> = {
+      message: `zuno: ${summary}`,
+      content: Buffer.from(proposedContent, 'utf8').toString('base64'),
+      branch,
+    };
+    if (originalSha) commitBody.sha = originalSha;
+    await githubWrite('PUT', `${prefix}/contents/${contentPath}`, commitBody);
+    let pullRequestUrl = '';
+    try {
+      const pull = await githubWrite('POST', `${prefix}/pulls`, {
+        title: summary,
+        head: branch,
+        base: baseBranch,
+        body: `Prepared by ZUNO Agent and approved by the user.\n\nFile: \`${path}\`\n\nPlease review the changes and run the repository checks before merging.`,
+      });
+      pullRequestUrl = pull.html_url || '';
+    } catch {
+      pullRequestUrl = `https://github.com/${owner}/${repo}/tree/${encodeURIComponent(branch)}`;
+    }
+    markProposalApproved(proposal.id);
+    res.json({ success: true, branch, pullRequestUrl });
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : 'Could not apply the approved proposal.' });
+  }
+});
+
 export const githubAgentTools = [
   {
     type: 'function',
@@ -144,10 +266,31 @@ export const githubAgentTools = [
       },
     },
   },
+
+  {
+    type: 'function',
+    function: {
+      name: 'propose_file_change',
+      description: 'Prepare a complete replacement for one repository text file as a reviewable proposal. This never writes to GitHub. Use only after inspecting the target file and explaining the intended change. The user must approve it in the UI before a branch or pull request is created.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          path: { type: 'string' },
+          summary: { type: 'string', description: 'Short change summary' },
+          content: { type: 'string', description: 'Complete new file contents, not a diff' },
+        },
+        required: ['owner', 'repo', 'path', 'summary', 'content'],
+        additionalProperties: false,
+      },
+    },
+  },
 ] as const;
 
 export async function executeGithubAgentTool(name: string, rawArgs: unknown): Promise<unknown> {
   const args = typeof rawArgs === 'object' && rawArgs !== null ? rawArgs as Record<string, unknown> : {};
+  if (name === 'propose_file_change') return prepareFileProposal(args);
   if (name === 'list_repositories') {
     const repos = await githubFetch('/user/repos?per_page=50&sort=updated&affiliation=owner,collaborator,organization_member');
     return repos.map((repo: any) => ({
