@@ -213,6 +213,7 @@ githubRouter.post('/proposals/:id/approve', async (req, res) => {
     if (originalSha) commitBody.sha = originalSha;
     await githubWrite('PUT', `${prefix}/contents/${contentPath}`, commitBody);
     let pullRequestUrl = '';
+    let pullRequestCreated = true;
     try {
       const pull = await githubWrite('POST', `${prefix}/pulls`, {
         title: summary,
@@ -222,10 +223,11 @@ githubRouter.post('/proposals/:id/approve', async (req, res) => {
       });
       pullRequestUrl = pull.html_url || '';
     } catch {
+      pullRequestCreated = false;
       pullRequestUrl = `https://github.com/${owner}/${repo}/tree/${encodeURIComponent(branch)}`;
     }
     markProposalApproved(proposal.id);
-    res.json({ success: true, branch, pullRequestUrl });
+    res.json({ success: true, branch, pullRequestUrl, pullRequestCreated });
   } catch (error) {
     res.status(502).json({ error: error instanceof Error ? error.message : 'Could not apply the approved proposal.' });
   }
