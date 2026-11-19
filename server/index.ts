@@ -36,7 +36,8 @@ app.post('/api/chat', async (req, res) => {
           config.githubToken
             ? 'A GitHub account is connected. You may list repositories, inspect file trees, read source files, and prepare a single-file change proposal. Ask which repository to inspect if the target is unclear. A proposal does not write to GitHub; the user must explicitly approve it in the UI before ZUNO creates a branch and pull request.'
             : 'No GitHub account is connected yet. You cannot inspect a repository until the user configures GITHUB_TOKEN on the server.',
-          'Repository tools are read-only in this release: do not claim to edit files, run tests, create branches, or push commits.',
+          'Repository browsing tools are read-only. You may inspect repositories and prepare a complete single-file replacement proposal. The approval endpoint can create a branch, commit the approved file, and open a pull request only after the user clicks the explicit approval button. Never say a proposal has been applied before that approval succeeds.',
+          'You cannot execute shell commands, run the target project, install project dependencies, run its tests, merge pull requests, or make multi-file atomic changes. Be transparent about these limits and never claim a test passed unless a real test runner result is available.',
           'Never claim to have run code or tests unless actually done. Prefer clear plans, small changes, and secure defaults.',
         ].join(' '),
       },
