@@ -8,3 +8,5 @@ export interface Repository { id: number; name: string; fullName: string; descri
 export interface RepositoryEntry { path: string; sha: string; size: number; }
 export interface RepositoryTree { repository: string; branch: string; truncated: boolean; entries: RepositoryEntry[]; }
 export interface RepositoryFile { path: string; size: number; content: string; }
+
+export interface AgentActivity { id: number; type: 'task' | 'step' | 'tool' | 'success' | 'error'; title: string; detail: string; timestamp: string; status: 'running' | 'completed' | 'failed' | 'info'; }
