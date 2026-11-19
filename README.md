@@ -5,11 +5,12 @@ A self-hostable AI software engineering workspace with a glass-inspired React in
 ## Current capabilities
 
 - Animated, responsive React workspace with glassmorphism styling.
+- Local recent-session history and an activity view, plus a repository-browser shortcut for code-review requests.
 - OpenAI-compatible chat endpoint; provider keys stay on the server.
 - Optional GitHub connection for listing repositories, browsing file trees, and reading source files.
 - Bounded model tool-calling loop for repository inspection and reviewable file-change proposals.
 - Explicit approval flow that creates a branch and pull request; it never merges automatically.
-- Request validation, file-size limits, and a GitHub Actions CI workflow.
+- Request validation, file-size limits, a GitHub Actions CI workflow, and production static-file serving from the API process.
 
 ## Not enabled yet
 
