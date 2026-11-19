@@ -1,4 +1,4 @@
-import type { ApprovalResponse, ChatMessage, ChatResponse, HealthResponse, Repository, RepositoryFile, RepositoryTree } from '../types';
+import type { ApprovalResponse, AgentActivity, ChatMessage, ChatResponse, HealthResponse, Repository, RepositoryFile, RepositoryTree } from '../types';
 
 async function readJson<T>(response: Response): Promise<T> {
   const data: unknown = await response.json().catch(() => ({}));
@@ -44,4 +44,9 @@ export async function approveProposal(id: string): Promise<ApprovalResponse> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   }));
+}
+
+export async function getAgentActivity(): Promise<AgentActivity[]> {
+  const data = await readJson<{ events: AgentActivity[] }>(await fetch('/api/activity', { cache: 'no-store' }));
+  return data.events;
 }
