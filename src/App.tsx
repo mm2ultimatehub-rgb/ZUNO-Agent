@@ -18,19 +18,53 @@ function makeMessage(role: ChatMessage['role'], content: string): ChatMessage {
   return { id: crypto.randomUUID(), role, content };
 }
 
+interface StoredSession {
+  id: string;
+  title: string;
+  updatedAt: number;
+  messages: ChatMessage[];
+}
+
+function loadStoredSessions(): StoredSession[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem('zuno:sessions') || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((session): session is StoredSession =>
+      typeof session === 'object' && session !== null &&
+      typeof (session as StoredSession).id === 'string' &&
+      typeof (session as StoredSession).title === 'string' &&
+      typeof (session as StoredSession).updatedAt === 'number' &&
+      Array.isArray((session as StoredSession).messages)
+    ).slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
 export default function App() {
+  const [sessions, setSessions] = useState<StoredSession[]>(loadStoredSessions);
+  const [currentSessionId, setCurrentSessionId] = useState(() => {
+    try { return localStorage.getItem('zuno:active-session') || crypto.randomUUID(); }
+    catch { return crypto.randomUUID(); }
+  });
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const stored = loadStoredSessions();
     try {
-      const saved = localStorage.getItem('zuno:current-session');
-      if (!saved) return [];
-      const parsed: unknown = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter((item): item is ChatMessage =>
+      const activeId = localStorage.getItem('zuno:active-session');
+      const active = stored.find((session) => session.id === activeId);
+      if (active) return active.messages.filter((item) =>
+        item && typeof item.id === 'string' &&
+        ['user', 'assistant'].includes(item.role) &&
+        typeof item.content === 'string'
+      ).slice(-100);
+      const legacy = localStorage.getItem('zuno:current-session');
+      const parsed: unknown = legacy ? JSON.parse(legacy) : [];
+      return Array.isArray(parsed) ? parsed.filter((item): item is ChatMessage =>
         typeof item === 'object' && item !== null &&
         typeof (item as ChatMessage).id === 'string' &&
         ['user', 'assistant'].includes((item as ChatMessage).role) &&
         typeof (item as ChatMessage).content === 'string'
-      ).slice(-100);
+      ).slice(-100) : [];
     } catch {
       return [];
     }
@@ -69,12 +103,27 @@ export default function App() {
 
   useEffect(() => {
     try {
-      if (messages.length === 0) localStorage.removeItem('zuno:current-session');
-      else localStorage.setItem('zuno:current-session', JSON.stringify(messages.slice(-100)));
+      localStorage.setItem('zuno:active-session', currentSessionId);
+      if (messages.length === 0) return;
+      const firstUserMessage = messages.find((message) => message.role === 'user')?.content || 'New session';
+      const nextSession: StoredSession = {
+        id: currentSessionId,
+        title: firstUserMessage.slice(0, 52),
+        updatedAt: Date.now(),
+        messages: messages.slice(-100),
+      };
+      setSessions((current) => {
+        const next = [nextSession, ...current.filter((session) => session.id !== currentSessionId)]
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .slice(0, 20);
+        try { localStorage.setItem('zuno:sessions', JSON.stringify(next)); } catch { /* Keep the active chat usable. */ }
+        return next;
+      });
+      localStorage.removeItem('zuno:current-session');
     } catch {
       // Storage can be unavailable or full; chat remains usable for this session.
     }
-  }, [messages]);
+  }, [messages, currentSessionId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy]);
 
@@ -166,7 +215,7 @@ export default function App() {
           <span className="brand-name">zuno<span>.</span></span>
           <button className="icon-button mobile-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu"><X size={18} /></button>
         </div>
-        <button className="new-chat" onClick={() => { setMessages([]); setProposals([]); setActiveTab('Chat'); setSidebarOpen(false); }}>
+        <button className="new-chat" onClick={() => { setCurrentSessionId(crypto.randomUUID()); setMessages([]); setProposals([]); setActiveTab('Chat'); setSidebarOpen(false); }}>
           <Plus size={17} /><span>New session</span><kbd>⌘ K</kbd>
         </button>
         <div className="side-label">WORKSPACE</div>
@@ -192,7 +241,16 @@ export default function App() {
           ))}
         </nav>
         <div className="side-label recent-label">RECENT</div>
-        {messages.length > 0 ? <button className="recent-item" onClick={() => setActiveTab('Chat')}><MessageSquare size={15} /><span>{messages.find(m => m.role === 'user')?.content || 'Current session'}</span></button> : <div className="empty-recent">Your sessions will appear here.</div>}
+        {sessions.length > 0 ? sessions.map((session) => (
+          <button className={`recent-item ${currentSessionId === session.id ? 'selected' : ''}`} key={session.id} onClick={() => {
+            setCurrentSessionId(session.id);
+            setMessages(session.messages);
+            setProposals([]);
+            setActiveTab('Chat');
+            setSidebarOpen(false);
+            setNotice('');
+          }}><MessageSquare size={15} /><span>{session.title}</span></button>
+        )) : <div className="empty-recent">Your sessions will appear here.</div>}
         <div className="sidebar-spacer" />
         <div className="usage-card">
           <div className="usage-top"><span className="usage-icon"><Zap size={14} /></span><span>Agent status</span><span className={`status-dot ${apiOnline ? 'online' : ''}`} /></div>
