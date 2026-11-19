@@ -15,10 +15,34 @@ app.use('/api/github', githubRouter);
 
 const localProvider = config.provider === 'ollama';
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
+  let runtimeAvailable = !localProvider;
+  let modelAvailable = !localProvider && Boolean(config.apiKey);
+  if (localProvider) {
+    try {
+      const response = await fetch(`${config.ollamaUrl}/api/tags`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (response.ok) {
+        runtimeAvailable = true;
+        const payload: any = await response.json().catch(() => ({}));
+        const installedModels = Array.isArray(payload?.models) ? payload.models : [];
+        modelAvailable = installedModels.some((item: any) =>
+          item?.name === config.model ||
+          item?.model === config.model ||
+          item?.name === `${config.model}:latest`
+        );
+      }
+    } catch {
+      runtimeAvailable = false;
+      modelAvailable = false;
+    }
+  }
   res.json({
     ok: true,
-    configured: localProvider || Boolean(config.apiKey),
+    configured: localProvider ? runtimeAvailable && modelAvailable : Boolean(config.apiKey),
+    runtimeAvailable,
+    modelAvailable,
     githubConfigured: Boolean(config.githubToken),
     provider: config.provider,
     model: config.model,
