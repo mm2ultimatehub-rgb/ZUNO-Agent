@@ -177,7 +177,16 @@ export default function App() {
             { name: 'Code review', icon: ShieldCheck },
             { name: 'Activity', icon: Activity },
           ].map(({ name, icon: Icon }) => (
-            <button key={name} className={`nav-item ${activeTab === name ? 'active' : ''}`} onClick={() => { setActiveTab(name); setSidebarOpen(false); if (name === 'Chat') setNotice(''); else if (name !== 'Projects') setNotice(`${name} tools are being built. The repository browser is available now.`); else setNotice(''); }}>
+            <button key={name} className={`nav-item ${activeTab === name ? 'active' : ''}`} onClick={() => {
+              setSidebarOpen(false);
+              setNotice('');
+              if (name === 'Code review') {
+                setActiveTab('Chat');
+                setInput('Review my connected GitHub repository for bugs, security issues, and reliability problems. Ask me which repository to inspect if needed.');
+              } else {
+                setActiveTab(name);
+              }
+            }}>
               <Icon size={17} /><span>{name}</span>{name === 'Activity' && <span className="nav-dot" />}
             </button>
           ))}
@@ -249,7 +258,30 @@ export default function App() {
               <div ref={bottomRef} />
             </div>
           ) : null}
-          {activeTab !== 'Projects' && activeTab !== 'Chat' && <div className="feature-placeholder glass-panel"><Sparkles size={22} /><h2>{activeTab}</h2><p>This workspace is being developed. GitHub repository browsing and AI chat are available now.</p><button className="settings-button" onClick={() => setActiveTab('Chat')}>Back to chat</button></div>}
+          {activeTab === 'Activity' && (
+            <div className="feature-placeholder glass-panel activity-view">
+              <Activity size={22} />
+              <h2>Recent activity</h2>
+              <p>Your current session is saved locally on this device. The latest 100 messages are restored when you reopen ZUNO.</p>
+              <div className="activity-stats">
+                <span><strong>{messages.length}</strong><small>Messages</small></span>
+                <span><strong>{proposals.length}</strong><small>Code proposals</small></span>
+                <span><strong>{proposals.filter((item) => item.status === 'approved').length}</strong><small>Approved</small></span>
+              </div>
+              {messages.length > 0 ? (
+                <div className="activity-list">
+                  {[...messages].reverse().slice(0, 8).map((message) => (
+                    <div className="activity-entry" key={message.id}>
+                      <span className={`activity-marker ${message.role}`} />
+                      <div><strong>{message.role === 'user' ? 'You' : 'ZUNO Agent'}</strong><p>{message.content}</p></div>
+                    </div>
+                  ))}
+                </div>
+              ) : <span className="activity-empty">No activity yet. Start a chat to see it here.</span>}
+              <button className="settings-button" onClick={() => setActiveTab('Chat')}>Back to chat</button>
+            </div>
+          )}
+          {activeTab !== 'Projects' && activeTab !== 'Chat' && activeTab !== 'Activity' && <div className="feature-placeholder glass-panel"><Sparkles size={22} /><h2>{activeTab}</h2><p>This workspace is being developed. GitHub repository browsing and AI chat are available now.</p><button className="settings-button" onClick={() => setActiveTab('Chat')}>Back to chat</button></div>}
           {messages.length === 0 && activeTab === 'Chat' && notice && <div className="inline-notice welcome-notice"><CircleHelp size={15} />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div>}
         </section>
 
