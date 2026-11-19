@@ -88,3 +88,23 @@ The chat composer includes browser-based speech input and spoken replies. Use th
 ## Live task progress
 
 The workspace Activity view polls `/api/activity` and displays recent agent task events, reasoning rounds, GitHub tool steps, and task completion or failure. The event feed is held in server memory (up to 80 events) and is cleared when the server restarts. It is intended for a trusted local network; do not expose this unauthenticated endpoint to the public internet.
+
+
+## Android app (APK)
+
+ZUNO includes a Capacitor Android wrapper around the existing responsive interface. The APK contains the ZUNO app shell and web UI; the AI model and Express API remain on a separate computer/server.
+
+### Build an APK with GitHub Actions
+
+1. Push the repository to the `main` branch.
+2. Open **Actions → Build Android APK**.
+3. Select **Run workflow** (or use the run started by a push).
+4. When the workflow completes, download the `zuno-android-debug-apk` artifact and install `app-debug.apk` on your Android phone.
+
+The workflow builds a debug APK for testing. A Play Store release requires a separately signed release build and signing credentials.
+
+### Connect the installed app to your AI server
+
+Open **Settings → ZUNO server address** in the app and enter the HTTPS URL of the server running the ZUNO Express API. Save and reconnect. For a same-Wi-Fi test, the computer and phone must be on the same network and the API must be reachable from the phone; HTTPS is recommended. Keep Ollama running on the server computer. Do not expose an unauthenticated development server to the public internet.
+
+The API address is stored on the device. No API key is embedded in the APK.
