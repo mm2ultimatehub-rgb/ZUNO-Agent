@@ -67,7 +67,7 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const taskStartedAt = Date.now();
-  recordActivity('task', 'New task received', parsed.data.messages.at(-1)?.content.slice(0, 180) || 'Chat request', 'running');
+  recordActivity('task', 'New task received', parsed.data.messages[parsed.data.messages.length - 1]?.content.slice(0, 180) || 'Chat request', 'running');
   try {
     const conversation: Array<Record<string, any>> = [
       {
