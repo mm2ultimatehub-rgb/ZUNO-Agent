@@ -224,7 +224,7 @@ export default function App() {
               {notice && <div className="inline-notice"><CircleHelp size={15} />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div>}
               <div ref={bottomRef} />
             </div>
-          )}
+          ) : null}
           {activeTab !== 'Projects' && activeTab !== 'Chat' && <div className="feature-placeholder glass-panel"><Sparkles size={22} /><h2>{activeTab}</h2><p>This workspace is being developed. GitHub repository browsing and AI chat are available now.</p><button className="settings-button" onClick={() => setActiveTab('Chat')}>Back to chat</button></div>}
           {messages.length === 0 && activeTab === 'Chat' && notice && <div className="inline-notice welcome-notice"><CircleHelp size={15} />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div>}
         </section>
