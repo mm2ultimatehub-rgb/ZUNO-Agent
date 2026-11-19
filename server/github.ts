@@ -84,13 +84,6 @@ async function prepareFileProposal(rawArgs: Record<string, unknown>) {
 }
 
 
-const repositoryName = z.string().regex(/^[A-Za-z0-9_.-]+$/);
-const ownerName = z.string().regex(/^[A-Za-z0-9-]+$/);
-const repoParams = z.object({ owner: ownerName, repo: repositoryName });
-const fileParams = repoParams.extend({
-  path: z.string().min(1).max(500).refine((value) => !value.startsWith('/') && !value.split('/').includes('..'), 'Invalid repository path'),
-});
-
 async function githubFetch(path: string) {
   if (!config.githubToken) throw new Error('GitHub is not configured. Add GITHUB_TOKEN to the server .env file.');
   const response = await fetch(`https://api.github.com${path}`, {
