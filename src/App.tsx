@@ -186,7 +186,7 @@ export default function App() {
                   <div className="file-preview glass-panel">{selectedFile ? <><div className="file-preview-heading"><FileText size={14} /><span>{selectedFile}</span></div>{fileLoading ? <div className="project-loading"><span className="send-loader" /> Loading file…</div> : <pre>{fileContent}</pre>}</> : <div className="file-empty"><Code2 size={24} /><strong>Select a file to preview</strong><span>Text files up to 100 KB can be opened here.</span></div>}</div>
                 </div>
               ) : projectsLoading ? <div className="project-loading"><span className="send-loader" /> Loading your GitHub repositories…</div> : projects.length === 0 ? <div className="file-empty"><FolderGit2 size={25} /><strong>No repositories found</strong><span>Check that your token can read repository metadata and contents.</span></div> : <div className="repository-grid">{projects.map((project) => <button className="repository-card glass-panel" key={project.id} onClick={() => void openProject(project)}><div className="repository-card-top"><span className="repo-icon"><FolderGit2 size={17} /></span><span className="repo-visibility">{project.private ? <Lock size={11} /> : <Globe size={11} />}{project.private ? 'Private' : 'Public'}</span></div><strong>{project.name}</strong><span className="repo-fullname">{project.fullName}</span><p>{project.description || 'No description provided.'}</p><div className="repo-card-footer"><span>{project.language || 'Source code'}</span><span>Open project <ExternalLink size={11} /></span></div></button>)}</div>
-              )}
+              )
             </div>
           ) : activeTab === 'Chat' && messages.length === 0 ? (
             <div className="welcome-wrap">
