@@ -43,6 +43,7 @@ For GitHub browsing, set `GITHUB_TOKEN` to a fine-grained token with **Metadata:
 - The API binds to `127.0.0.1` by default; do not expose it publicly until authentication and deployment hardening are added.
 - Source previews are limited to text files up to 100 KB; proposed replacements are limited to 40 KB.
 - Agent tool calls are allowlisted and bounded per request.
+- Pending proposals are held in server memory for up to one hour; restarting the server clears them.
 - GitHub writes occur only after an explicit approval click, on a new branch, and are submitted as a pull request. Nothing is merged automatically.
 - Arbitrary shell execution is not enabled.
 
