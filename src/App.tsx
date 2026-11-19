@@ -81,6 +81,8 @@ export default function App() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [configured, setConfigured] = useState(false);
+  const [runtimeAvailable, setRuntimeAvailable] = useState(false);
+  const [modelAvailable, setModelAvailable] = useState(false);
   const [githubConfigured, setGithubConfigured] = useState(false);
   const [projects, setProjects] = useState<Repository[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
@@ -104,6 +106,8 @@ export default function App() {
     checkHealth().then((health) => {
       setApiOnline(health.ok);
       setConfigured(health.configured);
+      setRuntimeAvailable(health.runtimeAvailable ?? health.ok);
+      setModelAvailable(health.modelAvailable ?? health.configured);
       setGithubConfigured(health.githubConfigured);
     }).catch(() => setApiOnline(false));
   }, []);
@@ -261,7 +265,7 @@ export default function App() {
         <div className="sidebar-spacer" />
         <div className="usage-card">
           <div className="usage-top"><span className="usage-icon"><Zap size={14} /></span><span>Agent status</span><span className={`status-dot ${apiOnline ? 'online' : ''}`} /></div>
-          <p>{apiOnline ? (configured ? 'Ready for your next task' : 'API ready · Add an AI key') : 'Waiting for local API'}</p>
+          <p>{!apiOnline ? 'Waiting for local API' : configured ? 'Local AI ready for your next task' : !runtimeAvailable ? 'Start Ollama to connect local AI' : !modelAvailable ? 'Download the configured Ollama model' : 'AI runtime needs configuration'}</p>
           <div className="usage-track"><span style={{ width: apiOnline ? '100%' : '18%' }} /></div>
         </div>
         <button className="profile-row" onClick={() => setShowSettings(true)}>
@@ -277,7 +281,7 @@ export default function App() {
           </div>
           <div className="topbar-right">
             <div className="connection-pill"><span className={`status-dot ${apiOnline ? 'online' : ''}`} />{apiOnline ? 'Local API connected' : 'API offline'}</div>
-            <button className="icon-button" aria-label="Help" onClick={() => setNotice('ZUNO uses a local Ollama model by default. Start Ollama and download the configured model to begin chatting.')}><CircleHelp size={18} /></button>
+            <button className="icon-button" aria-label="Help" onClick={() => setNotice('ZUNO runs locally without an API key. Install and start Ollama, then run: ollama pull qwen2.5-coder:3b. Keep Ollama running while you chat.')}><CircleHelp size={18} /></button>
             <button className="settings-button" onClick={() => setShowSettings(true)}><Settings2 size={16} /><span>Settings</span></button>
           </div>
         </header>
@@ -359,7 +363,7 @@ export default function App() {
         </div>
       </main>
 
-      {showSettings && <div className="modal-backdrop" onClick={() => setShowSettings(false)}><section className="settings-modal glass-panel" onClick={(e) => e.stopPropagation()}><div className="modal-heading"><div><span className="eyebrow-mini">PREFERENCES</span><h2>Workspace settings</h2></div><button className="icon-button" onClick={() => setShowSettings(false)}><X size={18} /></button></div><div className="settings-row"><span className="settings-symbol"><Cpu size={17} /></span><div><strong>Local AI model</strong><p>Ollama runs the model on your own computer</p></div><span className={`settings-state ${configured ? 'good' : ''}`}>{configured ? 'Connected' : 'Not configured'}</span></div><div className="settings-row"><span className="settings-symbol"><Github size={17} /></span><div><strong>GitHub integration</strong><p>Repository browsing, AI proposals, and approval-gated pull requests</p></div><span className={`settings-state ${githubConfigured ? 'good' : ''}`}>{githubConfigured ? 'Connected' : 'Not configured'}</span></div><div className="settings-row"><span className="settings-symbol"><Gauge size={17} /></span><div><strong>API status</strong><p>Local development server</p></div><span className={`settings-state ${apiOnline ? 'good' : ''}`}>{apiOnline ? 'Online' : 'Offline'}</span></div><div className="modal-footnote"><ShieldCheck size={14} /> AI and GitHub credentials stay on the server and are never sent to the browser.</div></section></div>}
+      {showSettings && <div className="modal-backdrop" onClick={() => setShowSettings(false)}><section className="settings-modal glass-panel" onClick={(e) => e.stopPropagation()}><div className="modal-heading"><div><span className="eyebrow-mini">PREFERENCES</span><h2>Workspace settings</h2></div><button className="icon-button" onClick={() => setShowSettings(false)}><X size={18} /></button></div><div className="settings-row"><span className="settings-symbol"><Cpu size={17} /></span><div><strong>Local AI model</strong><p>Ollama runs the model on your own computer · {`qwen2.5-coder:3b`}</p></div><span className={`settings-state ${configured ? 'good' : ''}`}>{configured ? 'Ready' : !runtimeAvailable ? 'Ollama offline' : !modelAvailable ? 'Model missing' : 'Not ready'}</span></div><div className="settings-row"><span className="settings-symbol"><Github size={17} /></span><div><strong>GitHub integration</strong><p>Repository browsing, AI proposals, and approval-gated pull requests</p></div><span className={`settings-state ${githubConfigured ? 'good' : ''}`}>{githubConfigured ? 'Connected' : 'Not configured'}</span></div><div className="settings-row"><span className="settings-symbol"><Gauge size={17} /></span><div><strong>API status</strong><p>Local development server</p></div><span className={`settings-state ${apiOnline ? 'good' : ''}`}>{apiOnline ? 'Online' : 'Offline'}</span></div><div className="modal-footnote"><ShieldCheck size={14} /> AI and GitHub credentials stay on the server and are never sent to the browser.</div></section></div>}
       <div className="build-stamp"><Layers3 size={12} /> ZUNO AGENT <span>·</span> EARLY ACCESS</div>
     </div>
   );
