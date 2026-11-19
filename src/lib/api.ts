@@ -3,18 +3,23 @@ import type { ApprovalResponse, AgentActivity, ChatMessage, ChatResponse, Health
 const API_URL_KEY = 'zuno:api-base-url';
 
 export function getApiBaseUrl(): string {
-  try { return localStorage.getItem(API_URL_KEY)?.trim().replace(/\\/$/, '') || ''; }
+  try { return localStorage.getItem(API_URL_KEY)?.trim().replace(/\/$/, '') || ''; }
   catch { return ''; }
 }
 
 export function setApiBaseUrl(value: string): void {
-  const normalized = value.trim().replace(/\\/$/, '');
-  if (normalized) localStorage.setItem(API_URL_KEY, normalized);
-  else localStorage.removeItem(API_URL_KEY);
+  const normalized = value.trim().replace(/\/$/, '');
+  try {
+    if (normalized) localStorage.setItem(API_URL_KEY, normalized);
+    else localStorage.removeItem(API_URL_KEY);
+  } catch {
+    throw new Error('This device cannot save the server address.');
+  }
 }
 
 function apiUrl(path: string): string {
-  return getApiBaseUrl() ? `${getApiBaseUrl()}${path}` : path;
+  const base = getApiBaseUrl();
+  return base ? base + path : path;
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -48,16 +53,16 @@ export async function listRepositories(): Promise<Repository[]> {
 export async function getRepositoryTree(owner: string, repo: string, branch?: string): Promise<RepositoryTree> {
   const query = new URLSearchParams({ owner, repo });
   if (branch) query.set('branch', branch);
-  return readJson<RepositoryTree>(await fetch(apiUrl(`/api/github/tree?${query}`)));
+  return readJson<RepositoryTree>(await fetch(apiUrl('/api/github/tree?' + query)));
 }
 
 export async function getRepositoryFile(owner: string, repo: string, path: string): Promise<RepositoryFile> {
   const query = new URLSearchParams({ owner, repo, path });
-  return readJson<RepositoryFile>(await fetch(apiUrl(`/api/github/file?${query}`)));
+  return readJson<RepositoryFile>(await fetch(apiUrl('/api/github/file?' + query)));
 }
 
 export async function approveProposal(id: string): Promise<ApprovalResponse> {
-  return readJson<ApprovalResponse>(await fetch(`/api/github/proposals/${encodeURIComponent(id)}/approve`, {
+  return readJson<ApprovalResponse>(await fetch(apiUrl('/api/github/proposals/' + encodeURIComponent(id) + '/approve'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   }));
