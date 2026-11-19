@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.zuno.agent',
   appName: 'ZUNO',
   webDir: 'dist',
-  bundledWebRuntime: false,
 };
 
 export default config;
