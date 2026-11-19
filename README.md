@@ -7,12 +7,13 @@ A self-hostable AI software engineering workspace with a glass-inspired React in
 - Animated, responsive React workspace with glassmorphism styling.
 - OpenAI-compatible chat endpoint; provider keys stay on the server.
 - Optional GitHub connection for listing repositories, browsing file trees, and reading source files.
-- Bounded model tool-calling loop with read-only GitHub tools.
+- Bounded model tool-calling loop for repository inspection and reviewable file-change proposals.
+- Explicit approval flow that creates a branch and pull request; it never merges automatically.
 - Request validation, file-size limits, and a GitHub Actions CI workflow.
 
 ## Not enabled yet
 
-This is an early foundation, not a finished autonomous coding agent. The current GitHub tools are read-only. It cannot yet edit repository files, run project commands, create branches, commit, or open pull requests. Those capabilities will be introduced behind explicit approvals and isolated execution.
+This is an early foundation, not a finished autonomous coding agent. It can inspect repositories and prepare complete single-file replacements. After a user explicitly approves a proposal, it creates a branch, commits that file, and opens a pull request when the token has sufficient permissions. It does not run project commands, execute arbitrary code, or merge pull requests.
 
 ## Requirements
 
@@ -34,15 +35,16 @@ Open http://localhost:5173. The API listens on http://localhost:8787.
 
 Set `AI_API_KEY` on the server. Optional provider settings are `AI_BASE_URL` and `AI_MODEL`.
 
-For GitHub repository browsing and agent inspection, set `GITHUB_TOKEN` to a fine-grained token with read-only **Metadata** and **Contents** permissions for the repositories you want ZUNO to access. Never expose this token through a `VITE_*` variable or commit it to Git.
+For GitHub browsing, set `GITHUB_TOKEN` to a fine-grained token with **Metadata: read** and **Contents: read** permissions. To approve proposals and create pull requests, also grant **Contents: write** and **Pull requests: write** for the repositories ZUNO should modify. Never expose this token through a `VITE_*` variable or commit it to Git.
 
 ## Safety
 
 - Provider and GitHub credentials stay server-side.
-- GitHub access is read-only in this release.
-- Source previews are limited to text files up to 100 KB.
+- The API binds to `127.0.0.1` by default; do not expose it publicly until authentication and deployment hardening are added.
+- Source previews are limited to text files up to 100 KB; proposed replacements are limited to 40 KB.
 - Agent tool calls are allowlisted and bounded per request.
-- Future write and execution tools must use workspace isolation, explicit user approval, and auditable operations.
+- GitHub writes occur only after an explicit approval click, on a new branch, and are submitted as a pull request. Nothing is merged automatically.
+- Arbitrary shell execution is not enabled.
 
 ## License
 
