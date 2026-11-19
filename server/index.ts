@@ -6,12 +6,18 @@ import cors from 'cors';
 import { config } from './config';
 import { chatRequestSchema } from './schemas';
 import { executeGithubAgentTool, githubAgentTools, githubRouter } from './github';
+import { getRecentActivity, recordActivity } from './activity';
 
 const app = express();
 app.disable('x-powered-by');
 app.use(cors({ origin: config.clientOrigin }));
 app.use(express.json({ limit: '512kb' }));
 app.use('/api/github', githubRouter);
+
+app.get('/api/activity', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ events: getRecentActivity() });
+});
 
 const localProvider = config.provider === 'ollama';
 
@@ -60,6 +66,8 @@ app.post('/api/chat', async (req, res) => {
     return;
   }
 
+  const taskStartedAt = Date.now();
+  recordActivity('task', 'New task received', parsed.data.messages.at(-1)?.content.slice(0, 180) || 'Chat request', 'running');
   try {
     const conversation: Array<Record<string, any>> = [
       {
@@ -82,6 +90,7 @@ app.post('/api/chat', async (req, res) => {
     let toolCallsUsed = 0;
     const proposals: unknown[] = [];
     for (let round = 0; round < 5; round += 1) {
+      recordActivity('step', `AI reasoning · round ${round + 1}`, 'Preparing the next response and checking whether a tool is needed.', 'running');
       const endpoint = localProvider ? `${config.ollamaUrl}/api/chat` : `${config.baseUrl}/chat/completions`;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (!localProvider) headers.Authorization = `Bearer ${config.apiKey}`;
@@ -129,6 +138,7 @@ app.post('/api/chat', async (req, res) => {
       conversation.push(assistantMessage);
       for (const call of calls) {
         toolCallsUsed += 1;
+        recordActivity('tool', `Using ${String(call.function?.name || 'agent tool')}`, 'ZUNO is gathering repository information or preparing a change.', 'running');
         if (toolCallsUsed > 8) {
           conversation.push({ role: 'tool', tool_call_id: call.id, tool_name: call.function?.name, content: 'Tool-call limit reached. Summarize the findings so far.' });
           continue;
@@ -138,9 +148,12 @@ app.post('/api/chat', async (req, res) => {
           const rawArgs = call.function?.arguments || {};
           const args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
           result = await executeGithubAgentTool(String(call.function?.name || ''), args);
+          recordActivity('step', 'Tool step completed', String(call.function?.name || 'Agent tool') + ' finished.', 'completed');
           if (typeof result === 'object' && result !== null && 'proposal' in result) proposals.push((result as { proposal: unknown }).proposal);
         } catch (error) {
-          result = { error: error instanceof Error ? error.message : 'Tool execution failed.' };
+          const errorMessage = error instanceof Error ? error.message : 'Tool execution failed.';
+          recordActivity('error', 'Tool step failed', errorMessage, 'failed');
+          result = { error: errorMessage };
         }
         conversation.push({
           role: 'tool',
@@ -152,9 +165,11 @@ app.post('/api/chat', async (req, res) => {
     }
 
     if (!answer) answer = 'I reached the safe tool-call limit for this turn. Please narrow the task or ask me to summarize what I found.';
+    recordActivity('success', 'Task completed', `Finished in ${Math.max(1, Math.round((Date.now() - taskStartedAt) / 1000))}s · ${toolCallsUsed} tool calls.`, 'completed');
     res.json({ message: answer, model: config.model, provider: config.provider, toolsUsed: toolCallsUsed, proposals });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown provider error';
+    recordActivity('error', 'Task failed', message, 'failed');
     res.status(502).json({
       error: localProvider && message.includes('fetch')
         ? `Local Ollama is not responding at ${config.ollamaUrl}. Start Ollama and make sure model "${config.model}" is installed.`
