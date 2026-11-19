@@ -42,3 +42,6 @@
 .live-activity-status{font-size:10px;white-space:nowrap;color:#a1a1aa;padding-top:3px}
 .live-activity-status.running{color:#c4b5fd}.live-activity-status.completed{color:#86efac}.live-activity-status.failed{color:#fca5a5}
 @media(max-width:600px){.live-activity-item{padding:12px;gap:9px}.live-activity-status{font-size:9px}.live-activity-copy p{font-size:11px}}
+
+
+.api-server-setting{padding:14px 0 18px;border-bottom:1px solid var(--line);margin-bottom:8px}.api-server-setting>label{display:block;color:#e3e2ed;font-size:12px;font-weight:600}.api-server-setting>p{margin:6px 0 11px;color:#85899e;font-size:10px;line-height:1.6}.api-server-controls{display:flex;gap:8px;align-items:center}.api-server-controls input{flex:1;min-width:0;height:38px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:rgba(5,7,14,.55);color:#f4f5fb;font-size:11px}.api-server-controls input:focus{outline:1px solid rgba(167,139,250,.6);border-color:rgba(167,139,250,.4)}.api-server-controls .settings-button{flex:none;white-space:nowrap}@media(max-width:520px){.api-server-controls{align-items:stretch;flex-direction:column}.api-server-controls .settings-button{justify-content:center}}
