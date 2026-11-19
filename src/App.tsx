@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   Activity, ArrowLeft, ArrowUp, Bot, Check, ChevronDown, CircleHelp, Code2,
   Command, Cpu, FolderGit2, Gauge, Github, Layers3, Menu, MessageSquare,
-  ExternalLink, FileCode2, FileText, Globe, Lock, MoreHorizontal, Paperclip, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles,
+  CheckCircle2, ExternalLink, FileCode2, FileText, GitPullRequest, Globe, Lock, MoreHorizontal, Paperclip, Plus, Radio, RefreshCw, Search, Settings2, ShieldCheck, Sparkles,
   X, Zap,
 } from 'lucide-react';
-import { checkHealth, getRepositoryFile, getRepositoryTree, listRepositories, sendChat } from './lib/api';
-import type { ChatMessage, Repository, RepositoryEntry } from './types';
+import { approveProposal, checkHealth, getRepositoryFile, getRepositoryTree, listRepositories, sendChat } from './lib/api';
+import type { ChangeProposal, ChatMessage, Repository, RepositoryEntry } from './types';
 
 const starterPrompts = [
   { icon: Code2, title: 'Build a feature', detail: 'Plan and implement a new capability' },
@@ -20,6 +20,8 @@ function makeMessage(role: ChatMessage['role'], content: string): ChatMessage {
 
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [proposals, setProposals] = useState<ChangeProposal[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [configured, setConfigured] = useState(false);
@@ -104,11 +106,25 @@ export default function App() {
     try {
       const result = await sendChat(next);
       setMessages((current) => [...current, makeMessage('assistant', result.message)]);
+      if (result.proposals?.length) setProposals((current) => [...current, ...result.proposals!]);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Something went wrong.');
     } finally {
       setBusy(false);
       inputRef.current?.focus();
+    }
+  }
+
+  async function approveChange(proposalId: string) {
+    setApprovingId(proposalId);
+    setProposals((current) => current.map((proposal) => proposal.id === proposalId ? { ...proposal, approvalError: undefined } : proposal));
+    try {
+      const result = await approveProposal(proposalId);
+      setProposals((current) => current.map((proposal) => proposal.id === proposalId ? { ...proposal, status: 'approved', pullRequestUrl: result.pullRequestUrl } : proposal));
+    } catch (error) {
+      setProposals((current) => current.map((proposal) => proposal.id === proposalId ? { ...proposal, approvalError: error instanceof Error ? error.message : 'Could not approve this change.' } : proposal));
+    } finally {
+      setApprovingId(null);
     }
   }
 
@@ -203,6 +219,7 @@ export default function App() {
             <div className="conversation">
               <div className="conversation-heading"><div><span className="eyebrow-mini">ZUNO SESSION</span><h2>Let's make it happen.</h2></div><span className="session-tag"><Radio size={12} /> Live session</span></div>
               {messages.map((message) => <article className={`message-row ${message.role}`} key={message.id}><div className={`message-avatar ${message.role}`}>{message.role === 'assistant' ? <Sparkles size={16} /> : 'Y'}</div><div className="message-body"><div className="message-meta"><strong>{message.role === 'assistant' ? 'ZUNO Agent' : 'You'}</strong><span>{message.role === 'assistant' ? 'AI assistant' : 'Just now'}</span></div><p>{message.content}</p></div></article>)}
+              {proposals.map((proposal) => <article className="proposal-card glass-panel" key={proposal.id}><div className="proposal-heading"><span className="proposal-icon"><GitPullRequest size={16} /></span><div><strong>Proposed code change</strong><small>{proposal.fullName} · {proposal.path}</small></div><span className={`proposal-status ${proposal.status}`}>{proposal.status === 'approved' ? 'PR created' : 'Needs review'}</span></div><p>{proposal.summary}</p><details><summary>Review the complete file change</summary><div className="proposal-code-grid"><section><small>BEFORE</small><pre>{proposal.originalContent || 'New file'}</pre></section><section><small>PROPOSED</small><pre>{proposal.proposedContent}</pre></section></div></details>{proposal.approvalError && <div className="proposal-error">{proposal.approvalError}</div>}{proposal.status === 'approved' ? <a className="proposal-link" href={proposal.pullRequestUrl} target="_blank" rel="noreferrer"><CheckCircle2 size={14} /> Open pull request <ExternalLink size={12} /></a> : <button className="approve-button" disabled={approvingId === proposal.id} onClick={() => void approveChange(proposal.id)}>{approvingId === proposal.id ? <span className="send-loader" /> : <CheckCircle2 size={15} />} Approve &amp; create pull request</button>}</article>)}
               {busy && <div className="message-row assistant"><div className="message-avatar assistant"><Sparkles size={16} /></div><div className="message-body"><div className="message-meta"><strong>ZUNO Agent</strong><span>Thinking</span></div><div className="typing"><i /><i /><i /></div></div></div>}
               {notice && <div className="inline-notice"><CircleHelp size={15} />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div>}
               <div ref={bottomRef} />
