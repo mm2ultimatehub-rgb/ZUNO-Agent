@@ -43,6 +43,17 @@ ZUNO's application, chat orchestration, memory/session handling, interface, GitH
 
 For development, open http://localhost:5173; the API listens on http://127.0.0.1:8787. Ollama must be running in the background at http://127.0.0.1:11434. For a production-style local run, use `npm run build` followed by `npm start`, then open http://127.0.0.1:8787.
 
+### Use ZUNO from a phone on the same Wi-Fi
+
+The AI model runs on the computer, not inside the phone browser. Keep Ollama and the ZUNO server running on that computer, then:
+
+1. Find the computer's private LAN IP address (for example, `192.168.1.20`).
+2. In `.env`, set `HOST=0.0.0.0` and `CLIENT_ORIGIN=http://192.168.1.20:5173` (replace the example IP with the computer's actual address).
+3. Start ZUNO with `npm run dev`, allow the app through the computer's firewall on your **private home network only**, and open `http://192.168.1.20:5173` on the phone.
+4. Do not expose the development server or unauthenticated API directly to the public internet. For remote access outside your Wi-Fi, deploy a secured backend with authentication and HTTPS first.
+
+This is local-network access: the phone is the interface, while Ollama and the model remain on the computer.
+
 ## Environment
 
 The default `AI_PROVIDER=ollama` mode uses `OLLAMA_URL` and `AI_MODEL`; it does not use `AI_API_KEY`. You can change the local model with `AI_MODEL` after downloading it through Ollama.
