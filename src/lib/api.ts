@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatResponse, HealthResponse, Repository, RepositoryFile, RepositoryTree } from '../types';
+import type { ApprovalResponse, ChatMessage, ChatResponse, HealthResponse, Repository, RepositoryFile, RepositoryTree } from '../types';
 
 async function readJson<T>(response: Response): Promise<T> {
   const data: unknown = await response.json().catch(() => ({}));
@@ -37,4 +37,11 @@ export async function getRepositoryTree(owner: string, repo: string, branch?: st
 export async function getRepositoryFile(owner: string, repo: string, path: string): Promise<RepositoryFile> {
   const query = new URLSearchParams({ owner, repo, path });
   return readJson<RepositoryFile>(await fetch(`/api/github/file?${query}`));
+}
+
+export async function approveProposal(id: string): Promise<ApprovalResponse> {
+  return readJson<ApprovalResponse>(await fetch(`/api/github/proposals/${encodeURIComponent(id)}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  }));
 }
