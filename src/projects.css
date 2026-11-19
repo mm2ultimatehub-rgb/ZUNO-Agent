@@ -43,3 +43,26 @@
 .feature-placeholder h2{margin:0;font:600 22px 'Space Grotesk'}
 .feature-placeholder p{margin:0 0 9px;color:#85899e;font-size:11px;line-height:1.6}
 @media(max-width:680px){.projects-view{max-height:calc(100vh - 110px)}.projects-heading{align-items:flex-start}.projects-heading h2{font-size:23px}.repository-detail{grid-template-columns:1fr;height:auto}.file-list{max-height:230px}.file-preview{min-height:250px}.connect-card{margin:25px auto;padding:23px}.repository-grid{grid-template-columns:1fr}.project-heading-actions .settings-button{font-size:9px}}
+
+.proposal-card{width:min(100% - 43px,720px);margin:0 0 22px 43px;padding:14px;border-radius:13px;background:rgba(25,27,43,.82)}
+.proposal-heading{display:flex;align-items:center;gap:10px}
+.proposal-icon{display:grid;place-items:center;width:31px;height:31px;border-radius:9px;background:rgba(167,139,250,.13);color:#c0aaff}
+.proposal-heading>div{display:grid;gap:4px;min-width:0;flex:1}
+.proposal-heading strong{font-size:11px}
+.proposal-heading small{overflow:hidden;color:#85899e;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.proposal-status{padding:5px 7px;border:1px solid rgba(231,181,111,.18);border-radius:20px;color:#d8b77d;font-size:8px}
+.proposal-status.approved{border-color:rgba(94,213,163,.2);color:#79d5a8}
+.proposal-card>p{margin:12px 0;color:#bfc0d0;font-size:11px;line-height:1.6}
+.proposal-card details{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.proposal-card summary{padding:10px 0;color:#a99ad8;font-size:10px;cursor:pointer}
+.proposal-code-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding-bottom:10px}
+.proposal-code-grid section{min-width:0}
+.proposal-code-grid section>small{color:#85899e;font-size:8px;font-weight:700;letter-spacing:1px}
+.proposal-code-grid pre{max-height:240px;overflow:auto;margin:6px 0 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:rgba(8,10,17,.65);color:#c8c8d6;font:9px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
+.approve-button{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding:9px 12px;border:1px solid rgba(94,213,163,.22);border-radius:9px;background:rgba(94,213,163,.09);color:#91dfb7;font-size:10px;font-weight:600;transition:.2s}
+.approve-button:hover:not(:disabled){border-color:rgba(94,213,163,.5);background:rgba(94,213,163,.14)}
+.approve-button:disabled{opacity:.6;cursor:wait}
+.proposal-link{display:inline-flex;align-items:center;gap:7px;margin-top:12px;color:#83d7ae;font-size:10px;text-decoration:none}
+.proposal-link:hover{text-decoration:underline}
+.proposal-error{margin-top:10px;color:#e2a6a6;font-size:10px;line-height:1.5}
+@media(max-width:680px){.proposal-card{width:100%;margin-left:0}.proposal-code-grid{grid-template-columns:1fr}}
