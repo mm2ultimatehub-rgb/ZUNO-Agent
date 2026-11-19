@@ -13,7 +13,7 @@ A self-hostable AI software engineering workspace with a glass-inspired React in
 
 ## Not enabled yet
 
-This is an early foundation, not a finished autonomous coding agent. It can inspect repositories and prepare complete single-file replacements. After a user explicitly approves a proposal, it creates a branch, commits that file, and opens a pull request when the token has sufficient permissions. It does not run project commands, execute arbitrary code, or merge pull requests.
+This is an early, approval-gated coding workspace, not a fully autonomous coding agent. It can inspect repositories and prepare complete single-file replacements. After a user explicitly approves a proposal, it creates a branch, commits that file, and opens a pull request when the token has sufficient permissions. It does not run project commands, execute arbitrary code, install project dependencies, run repository tests, apply multi-file changes atomically, or merge pull requests.
 
 ## Requirements
 
@@ -43,6 +43,7 @@ For GitHub browsing, set `GITHUB_TOKEN` to a fine-grained token with **Metadata:
 - The API binds to `127.0.0.1` by default; do not expose it publicly until authentication and deployment hardening are added.
 - Source previews are limited to text files up to 100 KB; proposed replacements are limited to 40 KB.
 - Agent tool calls are allowlisted and bounded per request.
+- The model cannot invoke a shell, install dependencies, or execute repository code. Treat all generated changes as untrusted until reviewed and tested.
 - Pending proposals are held in server memory for up to one hour; restarting the server clears them.
 - GitHub writes occur only after an explicit approval click, on a new branch, and are submitted as a pull request. Nothing is merged automatically.
 - Arbitrary shell execution is not enabled.
