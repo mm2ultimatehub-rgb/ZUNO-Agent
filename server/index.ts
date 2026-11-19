@@ -10,7 +10,13 @@ import { getRecentActivity, recordActivity } from './activity';
 
 const app = express();
 app.disable('x-powered-by');
-app.use(cors({ origin: config.clientOrigin }));
+const allowedOrigins = new Set([config.clientOrigin, 'https://localhost', 'http://localhost', 'capacitor://localhost']);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin)) callback(null, true);
+    else callback(new Error('Origin is not allowed by CORS.'));
+  },
+}));
 app.use(express.json({ limit: '512kb' }));
 app.use('/api/github', githubRouter);
 
