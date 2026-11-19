@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 export const config = {
   port: Number(process.env.PORT || 8787),
+  host: process.env.HOST || '127.0.0.1',
   apiKey: process.env.AI_API_KEY || '',
   githubToken: process.env.GITHUB_TOKEN || '',
   baseUrl: (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
