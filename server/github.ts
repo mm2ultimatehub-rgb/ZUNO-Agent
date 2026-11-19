@@ -100,3 +100,89 @@ githubRouter.get('/file', async (req, res) => {
     res.status(502).json({ error: error instanceof Error ? error.message : 'Could not read repository file.' });
   }
 });
+
+export const githubAgentTools = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_repositories',
+      description: 'List repositories accessible to the connected GitHub account. Use this when the user asks what projects are available.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_repository_tree',
+      description: 'List file paths in a GitHub repository. Requires owner and repo; branch is optional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string', description: 'GitHub owner login' },
+          repo: { type: 'string', description: 'Repository name without owner' },
+          branch: { type: 'string', description: 'Optional branch name' },
+        },
+        required: ['owner', 'repo'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_repository_file',
+      description: 'Read a text file from a GitHub repository (maximum 100 KB).',
+      parameters: {
+        type: 'object',
+        properties: {
+          owner: { type: 'string' },
+          repo: { type: 'string' },
+          path: { type: 'string', description: 'File path relative to repository root' },
+        },
+        required: ['owner', 'repo', 'path'],
+        additionalProperties: false,
+      },
+    },
+  },
+] as const;
+
+export async function executeGithubAgentTool(name: string, rawArgs: unknown): Promise<unknown> {
+  const args = typeof rawArgs === 'object' && rawArgs !== null ? rawArgs as Record<string, unknown> : {};
+  if (name === 'list_repositories') {
+    const repos = await githubFetch('/user/repos?per_page=50&sort=updated&affiliation=owner,collaborator,organization_member');
+    return repos.map((repo: any) => ({
+      fullName: repo.full_name,
+      description: repo.description,
+      private: repo.private,
+      defaultBranch: repo.default_branch,
+      language: repo.language,
+      url: repo.html_url,
+    }));
+  }
+  if (name === 'get_repository_tree') {
+    const parsed = repoParams.safeParse(args);
+    if (!parsed.success) throw new Error('Invalid owner or repository name.');
+    const { owner, repo } = parsed.data;
+    const metadata = await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
+    const branch = typeof args.branch === 'string' ? args.branch : metadata.default_branch;
+    if (branch.length > 200 || branch.includes('..')) throw new Error('Invalid branch name.');
+    const tree = await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`);
+    return {
+      repository: metadata.full_name,
+      branch,
+      truncated: Boolean(tree.truncated),
+      files: (tree.tree || []).filter((entry: any) => entry.type === 'blob').slice(0, 300).map((entry: any) => entry.path),
+    };
+  }
+  if (name === 'read_repository_file') {
+    const parsed = fileParams.safeParse(args);
+    if (!parsed.success) throw new Error('Invalid repository file path.');
+    const { owner, repo, path } = parsed.data;
+    const file = await githubFetch(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split('/').map(encodeURIComponent).join('/')}`);
+    if (Array.isArray(file) || file.type !== 'file' || file.size > 100_000 || !file.content) {
+      throw new Error('Unsupported file or file exceeds the 100 KB limit.');
+    }
+    return { path: file.path, content: Buffer.from(file.content, 'base64').toString('utf8') };
+  }
+  throw new Error('Unknown or disallowed tool. Only read-only GitHub tools are enabled.');
+}
