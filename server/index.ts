@@ -2,14 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import { config } from './config';
 import { chatRequestSchema } from './schemas';
+import { githubRouter } from './github';
 
 const app = express();
 app.disable('x-powered-by');
 app.use(cors({ origin: config.clientOrigin }));
 app.use(express.json({ limit: '64kb' }));
+app.use('/api/github', githubRouter);
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, configured: Boolean(config.apiKey), model: config.model });
+  res.json({ ok: true, configured: Boolean(config.apiKey), githubConfigured: Boolean(config.githubToken), model: config.model });
 });
 
 app.post('/api/chat', async (req, res) => {
