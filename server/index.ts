@@ -34,7 +34,7 @@ app.post('/api/chat', async (req, res) => {
           'You are ZUNO Agent, a careful AI software engineering partner.',
           'Help users understand, plan, and write software. Be precise and honest about what you have actually done.',
           config.githubToken
-            ? 'A GitHub account is connected. You may use the available read-only tools to list repositories, inspect file trees, and read source files when relevant. Ask which repository to inspect if the target is unclear.'
+            ? 'A GitHub account is connected. You may list repositories, inspect file trees, read source files, and prepare a single-file change proposal. Ask which repository to inspect if the target is unclear. A proposal does not write to GitHub; the user must explicitly approve it in the UI before ZUNO creates a branch and pull request.'
             : 'No GitHub account is connected yet. You cannot inspect a repository until the user configures GITHUB_TOKEN on the server.',
           'Repository tools are read-only in this release: do not claim to edit files, run tests, create branches, or push commits.',
           'Never claim to have run code or tests unless actually done. Prefer clear plans, small changes, and secure defaults.',
@@ -45,6 +45,7 @@ app.post('/api/chat', async (req, res) => {
 
     let answer = '';
     let toolCallsUsed = 0;
+    const proposals: unknown[] = [];
     for (let round = 0; round < 5; round += 1) {
       const upstream = await fetch(`${config.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -92,6 +93,7 @@ app.post('/api/chat', async (req, res) => {
         try {
           const args = JSON.parse(call.function?.arguments || '{}');
           result = await executeGithubAgentTool(String(call.function?.name || ''), args);
+          if (typeof result === 'object' && result !== null && 'proposal' in result) proposals.push((result as { proposal: unknown }).proposal);
         } catch (error) {
           result = { error: error instanceof Error ? error.message : 'Tool execution failed.' };
         }
@@ -104,7 +106,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     if (!answer) answer = 'I reached the safe tool-call limit for this turn. Please narrow the task or ask me to summarize what I found.';
-    res.json({ message: answer, model: config.model, toolsUsed: toolCallsUsed });
+    res.json({ message: answer, model: config.model, toolsUsed: toolCallsUsed, proposals });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown provider error';
     res.status(502).json({ error: message.includes('timeout') ? 'The AI request timed out. Please try again.' : 'Could not reach the AI provider. Check your server configuration.' });
